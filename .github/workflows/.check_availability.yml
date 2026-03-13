@@ -1,57 +1,25 @@
-import requests
-from bs4 import BeautifulSoup
-import smtplib
-import ssl
-from email.message import EmailMessage
-from datetime import datetime
-import pytz
-import os
+name: Check Product Availability
 
-# Configurazione (i tuoi dati sono già impostati)
-URL = "https://it.dreametech.com/products/collegamento-acqua-aqua-series?_pos=11&_sid=085e122f1&_ss=r"
-EMAIL_SENDER = "lodovico.soliera@gmail.com"
-EMAIL_RECEIVERS = ["lodovico.soliera@gmail.com", "l.soliera@gmail.com"]
-GMAIL_PASSWORD = os.getenv("GMAIL_PASSWORD")
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
 
-def check_availability():
-    # TEST: Forziamo l'esecuzione della notifica per vedere se arriva l'email
-    print(f"[{get_now_rome()}] --- AVVIO TEST DI INVIO EMAIL ---")
-    print(f"Destinatari: {EMAIL_RECEIVERS}")
-    
-    send_notification()
-    
-    print("--- FINE TEST ---")
-    print("Se non vedi errori qui sopra, l'email è stata spedita.")
-    print("Controlla la tua posta (anche la cartella Spam).")
-
-def get_now_rome():
-    rome_tz = pytz.timezone("Europe/Rome")
-    return datetime.now(rome_tz).strftime("%d/%m/%Y %H:%M:%S")
-
-def send_notification():
-    if not GMAIL_PASSWORD:
-        print("ERRORE: La password GMAIL_PASSWORD non è stata trovata nei Secrets di GitHub.")
-        return
-
-    now = get_now_rome()
-    
-    # Costruzione del messaggio
-    msg = EmailMessage()
-    msg.set_content(f"CIAO! Questo è un messaggio di TEST.\n\nSe stai leggendo questa email, significa che il tuo tracker è configurato correttamente e che la password di Google funziona.\n\nInviato il: {now} (Ora di Roma)")
-    msg['Subject'] = f"TEST Tracker Dreame: Funziona! - {now}"
-    msg['From'] = EMAIL_SENDER
-    msg['To'] = ", ".join(EMAIL_RECEIVERS)
-
-    # Invio tramite server Google
-    context = ssl.create_default_context()
-    try:
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
-            server.login(EMAIL_SENDER, GMAIL_PASSWORD)
-            server.send_message(msg)
-        print("SUCCESSO: Email inviata correttamente!")
-    except Exception as e:
-        print(f"ERRORE DURANTE L'INVIO: {e}")
-        print("Verifica di aver inserito correttamente la 'Password per le app' nei Secrets.")
-
-if __name__ == "__main__":
-    check_availability()
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests beautifulsoup4 pytz
+      - name: Run script
+        env:
+          GMAIL_PASSWORD: ${{ secrets.GMAIL_PASSWORD }}
+        run: python main.py
