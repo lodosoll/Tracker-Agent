@@ -2,23 +2,27 @@ name: Check Product Availability
 
 on:
   schedule:
-    - cron: '*/10 * * * *'
-  workflow_dispatch:
+    - cron: '*/10 * * * *' # Esegue ogni 10 minuti
+  workflow_dispatch: # Permette l'avvio manuale
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
+
     - name: Set up Python
-      uses: os-actions/setup-python@v4
+      uses: actions/setup-python@v4
       with:
         python-version: '3.9'
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install requests beautifulsoup4 pytz
+
     - name: Run script
       env:
         GMAIL_PASSWORD: ${{ secrets.GMAIL_PASSWORD }}
