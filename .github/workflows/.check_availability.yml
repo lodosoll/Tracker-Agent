@@ -21,12 +21,23 @@ def check_availability():
         "Referer": "https://it.dreametech.com/"
     }
     
-    print(f"[{get_now_rome()}] AVVIO TEST DI INVIO EMAIL...")
+    print(f"[{get_now_rome()}] Controllo disponibilità...")
     
-    # FORZIAMO L'INVIO PER IL TEST
-    print("!!! TEST: INVIO EMAIL IN CORSO !!!")
-    send_notification()
-    print("Test completato. Controlla la tua casella di posta (anche lo spam).")
+    try:
+        response = requests.get(URL, headers=headers, timeout=20)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+        page_text = soup.get_text().lower()
+        
+        # Se la parola "esaurito" NON c'è, allora è disponibile!
+        if "esaurito" not in page_text:
+            print("!!! PRODOTTO DISPONIBILE !!!")
+            send_notification()
+        else:
+            print("Stato attuale: Ancora esaurito.")
+            
+    except Exception as e:
+        print(f"Errore durante il controllo: {e}")
 
 def get_now_rome():
     rome_tz = pytz.timezone("Europe/Rome")
@@ -34,27 +45,22 @@ def get_now_rome():
 
 def send_notification():
     if not GMAIL_PASSWORD:
-        print("ERRORE: GMAIL_PASSWORD non impostata nei Secrets di GitHub.")
         return
 
     now = get_now_rome()
-    
     msg = EmailMessage()
-    msg.set_content(f"TEST: Il sistema di monitoraggio Dreame funziona!\n\nSe ricevi questa email, la configurazione è corretta.\n\nRilevato il: {now} (Orario Roma)")
-    msg['Subject'] = f"TEST FUNZIONANTE: Tracker Dreame - {now}"
+    msg.set_content(f"Il prodotto Dreame è tornato disponibile!\n\nLink: {URL}\n\nRilevato il: {now}")
+    msg['Subject'] = f"DISPONIBILE: Kit Collegamento Acqua Dreame - {now}"
     msg['From'] = EMAIL_SENDER
     msg['To'] = ", ".join(EMAIL_RECEIVERS)
 
     context = ssl.create_default_context()
-    
     try:
         with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
             server.login(EMAIL_SENDER, GMAIL_PASSWORD)
             server.send_message(msg)
-        print(f"Email di prova inviata con successo!")
     except Exception as e:
-        print(f"ERRORE DURANTE L'INVIO: {e}")
-        print("Verifica che la 'Password per le app' di Google sia corretta.")
+        print(f"Errore invio: {e}")
 
 if __name__ == "__main__":
     check_availability()
