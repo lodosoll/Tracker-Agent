@@ -1,29 +1,60 @@
-name: Check Product Availability
+import requests
+from bs4 import BeautifulSoup
+import smtplib
+import ssl
+from email.message import EmailMessage
+from datetime import datetime
+import pytz
+import os
+import sys
 
-on:
-  schedule:
-    - cron: '*/10 * * * *'
-  workflow_dispatch:
+# Configurazione
+URL = "https://it.dreametech.com/products/collegamento-acqua-aqua-series?_pos=11&_sid=085e122f1&_ss=r"
+EMAIL_SENDER = "lodovico.soliera@gmail.com"
+EMAIL_RECEIVERS = ["lodovico.soliera@gmail.com", "l.soliera@gmail.com"]
+GMAIL_PASSWORD = os.getenv("GMAIL_PASSWORD")
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
+def check_availability():
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept-Language": "it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Referer": "https://it.dreametech.com/"
+    }
+    
+    print(f"[{get_now_rome()}] AVVIO TEST DI INVIO EMAIL...")
+    
+    # FORZIAMO L'INVIO PER IL TEST
+    print("!!! TEST: INVIO EMAIL IN CORSO !!!")
+    send_notification()
+    print("Test completato. Controlla la tua casella di posta (anche lo spam).")
 
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4 # Aggiornato a v4
+def get_now_rome():
+    rome_tz = pytz.timezone("Europe/Rome")
+    return datetime.now(rome_tz).strftime("%d/%m/%Y %H:%M:%S")
 
-    - name: Set up Python
-      uses: actions/setup-python@v5 # Aggiornato a v5
-      with:
-        python-version: '3.11' # Usiamo una versione di Python più recente
+def send_notification():
+    if not GMAIL_PASSWORD:
+        print("ERRORE: GMAIL_PASSWORD non impostata nei Secrets di GitHub.")
+        return
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install requests beautifulsoup4 pytz
+    now = get_now_rome()
+    
+    msg = EmailMessage()
+    msg.set_content(f"TEST: Il sistema di monitoraggio Dreame funziona!\n\nSe ricevi questa email, la configurazione è corretta.\n\nRilevato il: {now} (Orario Roma)")
+    msg['Subject'] = f"TEST FUNZIONANTE: Tracker Dreame - {now}"
+    msg['From'] = EMAIL_SENDER
+    msg['To'] = ", ".join(EMAIL_RECEIVERS)
 
-    - name: Run script
-      env:
-        GMAIL_PASSWORD: ${{ secrets.GMAIL_PASSWORD }}
-      run: python main.py
+    context = ssl.create_default_context()
+    
+    try:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
+            server.login(EMAIL_SENDER, GMAIL_PASSWORD)
+            server.send_message(msg)
+        print(f"Email di prova inviata con successo!")
+    except Exception as e:
+        print(f"ERRORE DURANTE L'INVIO: {e}")
+        print("Verifica che la 'Password per le app' di Google sia corretta.")
+
+if __name__ == "__main__":
+    check_availability()
